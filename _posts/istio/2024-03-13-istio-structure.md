@@ -1,5 +1,5 @@
 ---
-title: Istio基础
+title: Istio 基础
 date: 2024-03-13 19:13:06 +0800
 categories: [Cloud Native, Istio]
 tags: [istio]
@@ -19,9 +19,9 @@ Istio 是一个开放源代码的服务网格，它为微服务提供了网络�
 从Istio 1.5版本开始，Istio 项目开始对其架构进行了简化，将 Pilot、Citadel、Galley 等组件合并到了一个单一的二进制组件 istiod 中。这个变化旨在简化 Istio 的部署和操作，使得管理更加高效。
 
 ### Pilot
-Pilot 分为两部分，分别为 Pilot-Agent 和 Pilot。Pilot 运行于 Istiod 中，Pilot-agent 与 Envoy 作为 istio-proxy 容器运行于 Sidecar 中。
+Pilot 分为两部分，分别为 Pilot-Agent 和 Pilot-Discovery。Pilot-Discovery 运行于 Istiod 中，Pilot-agent 与 Envoy 作为 istio-proxy 容器运行于 Sidecar 中。两者的启动见`pilot/cmd/`。
 
-Pilot 如前文所述，负责服务发现和配置代理。Pilot-Agent 是 Envoy 代理的助手，负责管理 Envoy 的生命周期，包括启动、配置更新和健康检查。Pilot-Agent 与 Istiod 通信，接收到最新的配置信息，并使用这些信息来动态配置 Envoy 代理。
+Pilot-Discovery 如前文所述，负责服务发现和配置代理。Pilot-Agent 是 Envoy 代理的助手，负责管理 Envoy 的生命周期，包括启动、配置更新和健康检查。Pilot-Agent 与 Istiod 通信，接收到最新的配置信息，并使用这些信息来动态配置 Envoy 代理。
 
 ```yaml
     # istio-proxy container
@@ -125,7 +125,19 @@ Sidecar 注入主要是依托k8s的准入控制器 Admission Controller 来实�
 
 ![](images/kubernetes-webhook.png)
 
+istio 注入源码见`pkg/kube/inject/webhook.go`。
+
+```go
+// pkg/kube/inject/webhook.go
+func NewWebhook(p WebhookParameters) (*Webhook, error) {}
+
+func (wh *Webhook) inject(ar *kube.AdmissionReview, path string) *kube.AdmissionResponse {}
+
+func injectPod(req InjectionParameters) ([]byte, error) {}
+...
+```
+
 ## 引用
 > [https://jimmysong.io/blog/istio-components-and-ports/](https://jimmysong.io/blog/istio-components-and-ports/)
-
+>
 > [Sidecar自动注入如何实现的？](https://www.cnblogs.com/luozhiyun/p/13942838.html#:~:text=istio%2Dinit%E8%BF%99%E4%B8%AA%E5%AE%B9%E5%99%A8%E4%BB%8E,%E5%AE%9A%E5%90%91%E8%BF%9B%E5%85%A5%E6%88%96%E6%B5%81%E5%87%BASidecar%E3%80%82)
