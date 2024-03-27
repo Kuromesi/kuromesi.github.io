@@ -337,9 +337,9 @@ type PushRequest struct {
 └── monitor
 ```
 
-### 
+### config
 
-`ConfigController` 用于控制 Istio CR 例如 VirtualService、DestinationRule 等。当 CR 进行更新时，Pilot 会将生成新的 PushRequest 将配置变化推送给 Envoy。
+`ConfigController` 用于控制 CR 例如 VirtualService、DestinationRule 等。当 CR 进行更新时，Pilot 会将生成新的 PushRequest 将配置变化推送给 Envoy。
 
 ```go
 // pilot/pkg/bootstrap/configcontroller.go
@@ -484,6 +484,235 @@ configHandler := func(prev config.Config, curr config.Config, event model.Event)
 	s.XDSServer.ConfigUpdate(pushReq)
 }
 ```
+
+### ServiceRegistry
+
+`ServiceRegistry` 定义了 `Controller` 结构体对不同的服务注册中心进行管理。前几行的代码中的两行声明是Go语言中的"空白标识符"语法。它们不会实际声明任何变量或值,而是用于确保某些类型实现了特定接口。如果类型没有正确实现所需的接口，Go编译器将报错。
+
+```go
+// pilot/pkg/serviceregistry/aggregate/controller.go
+// The aggregate controller does not implement serviceregistry.Instance since it may be comprised of various
+// providers and clusters.
+var (
+	_ model.ServiceDiscovery    = &Controller{}
+	_ model.AggregateController = &Controller{}
+)
+
+// Controller aggregates data across different registries and monitors for changes
+type Controller struct {
+	meshHolder mesh.Holder
+
+	// The lock is used to protect the registries and controller's running status.
+	storeLock  sync.RWMutex
+	registries []*registryEntry
+	// indicates whether the controller has run.
+	// if true, all the registries added later should be run manually.
+	running bool
+
+	handlers          model.ControllerHandlers
+	handlersByCluster map[cluster.ID]*model.ControllerHandlers
+	model.NetworkGatewaysHandler
+}
+```
+
+`ControllerHandlers` 定义如下，分为 `ServiceHandlers` 和 `WorkloadHandlers` 两部分，分别对 Istio 服务，Pod 和 WorkloadEntry 进行处理。WorkloadEntry 将非 k8s 例如 VM 中的服务进行了抽象，相当于转换为集群中的 Pod ，从而可以对 VM 和 Pod 在 ServiceEntry 中进行相同的处理，例如通过 label 进行选择。介绍见[https://istio.io/latest/zh/blog/2020/workload-entry/](https://istio.io/latest/zh/blog/2020/workload-entry/)。
+
+```go
+// ControllerHandlers is a utility to help Controller implementations manage their lists of handlers.
+type ControllerHandlers struct {
+	mutex            sync.RWMutex
+	serviceHandlers  []ServiceHandler
+	workloadHandlers []func(*WorkloadInstance, Event)
+}
+```
+
+aggregate controller 传入了以下 service handler：
+
+```go
+// pilot/pkg/bootstrap/server.go
+serviceHandler := func(prev, curr *model.Service, event model.Event) {
+	pushReq := &model.PushRequest{
+		Full:           true,
+		ConfigsUpdated: sets.New(model.ConfigKey{Kind: kind.ServiceEntry, Name: string(curr.Hostname), Namespace: curr.Attributes.Namespace}),
+		Reason:         model.NewReasonStats(model.ServiceUpdate),
+	}
+	s.XDSServer.ConfigUpdate(pushReq)
+}
+s.ServiceController().AppendServiceHandler(serviceHandler)
+```
+
+当添加新的 registry 的时候，会向该 registry 中添加如下的 service handler，也即遍历 controller handler 中所有的 handler 并运行。
+
+```go
+// pilot/pkg/serviceregistry/aggregate/controller.go
+registry.AppendServiceHandler(c.handlers.NotifyServiceHandlers)
+registry.AppendServiceHandler(func(prev, curr *model.Service, event model.Event) {
+	for _, handlers := range c.getClusterHandlers() {
+		handlers.NotifyServiceHandlers(prev, curr, event)
+	}
+})
+
+// pilot/pkg/model/controller.go
+func (c *ControllerHandlers) NotifyServiceHandlers(prev, curr *Service, event Event) {
+	for _, f := range c.GetServiceHandlers() {
+		f(prev, curr, event)
+	}
+}
+
+```
+
+Registry Instance 代表了一个注册中心的实例，例如 Kubernetes，可以用于查询现有的服务。
+
+```go
+// pilot/pkg/serviceregistry/aggregate/controller.go
+type registryEntry struct {
+	serviceregistry.Instance
+	// stop if not nil is the per-registry stop chan. If null, the server stop chan should be used to Run the registry.
+	stop <-chan struct{}
+}
+
+// pilot/pkg/serviceregistry/instance.go
+type Instance interface {
+	model.Controller
+	model.ServiceDiscovery
+
+	// Provider backing this service registry (i.e. Kubernetes etc.)
+	Provider() provider.ID
+
+	// Cluster for which the service registry applies. Only needed for multicluster systems.
+	Cluster() cluster.ID
+}
+```
+
+#### Service
+
+`Service` 可以通俗的理解为一个域名下包含的服务总和，一个域名可以包含多个端口，每个端口也可以路由至不同的端点，不同的端点可能运行着不同的服务。
+
+```go
+// Service describes an Istio service (e.g., catalog.mystore.com:8080)
+// Each service has a fully qualified domain name (FQDN) and one or more
+// ports where the service is listening for connections. *Optionally*, a
+// service can have a single load balancer/virtual IP address associated
+// with it, such that the DNS queries for the FQDN resolves to the virtual
+// IP address (a load balancer IP).
+//
+// E.g., in kubernetes, a service foo is associated with
+// foo.default.svc.cluster.local hostname, has a virtual IP of 10.0.1.1 and
+// listens on ports 80, 8080
+type Service struct {
+	// Attributes contains additional attributes associated with the service
+	// used mostly by RBAC for policy enforcement purposes.
+	Attributes ServiceAttributes
+
+	// Ports is the set of network ports where the service is listening for
+	// connections
+	Ports PortList `json:"ports,omitempty"`
+
+	// ServiceAccounts specifies the service accounts that run the service.
+	ServiceAccounts []string `json:"serviceAccounts,omitempty"`
+
+	// CreationTime records the time this service was created, if available.
+	CreationTime time.Time `json:"creationTime,omitempty"`
+
+	// Name of the service, e.g. "catalog.mystore.com"
+	Hostname host.Name `json:"hostname"`
+
+	// ClusterVIPs specifies the service address of the load balancer
+	// in each of the clusters where the service resides
+	ClusterVIPs AddressMap `json:"clusterVIPs,omitempty"`
+
+	// DefaultAddress specifies the default service IP of the load balancer.
+	// Do not access directly. Use GetAddressForProxy
+	DefaultAddress string `json:"defaultAddress,omitempty"`
+
+	// AutoAllocatedIPv4Address and AutoAllocatedIPv6Address specifies
+	// the automatically allocated IPv4/IPv6 address out of the reserved
+	// Class E subnet (240.240.0.0/16) or reserved Benchmarking IP range
+	// (2001:2::/48) in RFC5180.for service entries with non-wildcard
+	// hostnames. The IPs assigned to services are not
+	// synchronized across istiod replicas as the DNS resolution
+	// for these service entries happens completely inside a pod
+	// whose proxy is managed by one istiod. That said, the algorithm
+	// to allocate IPs is pretty deterministic that at stable state, two
+	// istiods will allocate the exact same set of IPs for a given set of
+	// service entries.
+	AutoAllocatedIPv4Address string `json:"autoAllocatedIPv4Address,omitempty"`
+	AutoAllocatedIPv6Address string `json:"autoAllocatedIPv6Address,omitempty"`
+
+	// Resolution indicates how the service instances need to be resolved before routing
+	// traffic. Most services in the service registry will use static load balancing wherein
+	// the proxy will decide the service instance that will receive the traffic. Service entries
+	// could either use DNS load balancing (i.e. proxy will query DNS server for the IP of the service)
+	// or use the passthrough model (i.e. proxy will forward the traffic to the network endpoint requested
+	// by the caller)
+	Resolution Resolution
+
+	// MeshExternal (if true) indicates that the service is external to the mesh.
+	// These services are defined using Istio's ServiceEntry spec.
+	MeshExternal bool
+
+	// ResourceVersion represents the internal version of this object.
+	ResourceVersion string
+}
+```
+
+#### ServiceInstance
+
+`ServiceInstance` 对应的是是服务中的一个具体实例，也即服务的一个具体端点。
+
+```mermaid
+graph LR
+	service["Service(catalog.myservice.com)"]-->ServiceInstanceA-->ipA["Endpoint(172.16.0.1:8888)"]
+	service-->ServiceInstanceB-->ipB["Endpoint(172.16.0.2:8888)"]
+	service-->ServiceInstanceC-->ipC["Endpoint(172.16.0.3:8080)"]
+```
+
+```go
+// ServiceInstance represents an individual instance of a specific version
+// of a service. It binds a network endpoint (ip:port), the service
+// description (which is oblivious to various versions) and a set of labels
+// that describe the service version associated with this instance.
+//
+// Since a ServiceInstance has a single IstioEndpoint, which has a single port,
+// multiple ServiceInstances are required to represent a workload that listens
+// on multiple ports.
+//
+// The labels associated with a service instance are unique per a network endpoint.
+// There is one well defined set of labels for each service instance network endpoint.
+//
+// For example, the set of service instances associated with catalog.mystore.com
+// are modeled like this
+//
+//	--> IstioEndpoint(172.16.0.1:8888), Service(catalog.myservice.com), Labels(foo=bar)
+//	--> IstioEndpoint(172.16.0.2:8888), Service(catalog.myservice.com), Labels(foo=bar)
+//	--> IstioEndpoint(172.16.0.3:8888), Service(catalog.myservice.com), Labels(kitty=cat)
+//	--> IstioEndpoint(172.16.0.4:8888), Service(catalog.myservice.com), Labels(kitty=cat)
+type ServiceInstance struct {
+	Service     *Service       `json:"service,omitempty"`
+	ServicePort *Port          `json:"servicePort,omitempty"`
+	Endpoint    *IstioEndpoint `json:"endpoint,omitempty"`
+}
+```
+
+#### WorkloadInstance
+
+```go
+type WorkloadInstance struct {
+	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	// Where the workloadInstance come from, valid values are`Pod` or `WorkloadEntry`
+	Kind     workloadKind      `json:"kind"`
+	Endpoint *IstioEndpoint    `json:"endpoint,omitempty"`
+	PortMap  map[string]uint32 `json:"portMap,omitempty"`
+	// Can only be selected by service entry of DNS type.
+	DNSServiceEntryOnly bool `json:"dnsServiceEntryOnly,omitempty"`
+}
+```
+
+<!-- ```mermaid
+graph LR
+	Instance
+``` -->
 
 ## Issue
 
