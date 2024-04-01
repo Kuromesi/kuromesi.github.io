@@ -2,9 +2,34 @@
 title: Ztunnel 基础
 date: 2024-03-26 09:47:06 +0800
 categories: [Cloud Native, Istio]
-tags: [istio]
+tags: [ambient, ztunnel]
 author: kuromesi
 ---
+
+## ztunnel 端口
+
+| Port  | Purpose                               | Bound Within Pod Network Namespace |
+|-------|---------------------------------------|------------------------------------|
+| 15001 | Pod outbound traffic capture          | Y                                  |
+| 15006 | Pod inbound plaintext traffic capture | Y                                  |
+| 15008 | Pod inbound HBONE traffic capture     | Y                                  |
+| 15080 | Pod outbound `socks5` traffic         | Y                                  |
+| 15053 | Pod outbound DNS traffic capture      | Y                                  |
+| 15021 | Readiness                             | N                                  |
+| 15000 | Admin (Admin thread) (Localhost)      | N                                  |
+| 15020 | Metrics (Admin thread)                | N                                  |
+
+## ztunnel iptables 配置
+
+```shell
+Chain ztunnel-PREROUTING (1 references)
+ pkts bytes target     prot opt in     out     source               destination
+    0     0 MARK       all  --  istioin *       0.0.0.0/0            0.0.0.0/0            MARK or 0x200
+    0     0 RETURN     all  --  istioin *       0.0.0.0/0            0.0.0.0/0
+    0     0 MARK       all  --  istioout *       0.0.0.0/0            0.0.0.0/0            MARK or 0x200
+    0     0 RETURN     all  --  istioout *       0.0.0.0/0            0.0.0.0/0
+   32  3584 RETURN     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            udp dpt:6081
+```
 
 ## 多域名 (SAN) SSL 证书
 
@@ -32,3 +57,5 @@ let mut allowed_sans: Vec<Identity> = Vec::new();
 > [https://zhuanlan.zhihu.com/p/39806386](https://zhuanlan.zhihu.com/p/39806386)
 >
 > [https://www.wosign.com/column/ssl_20211231.htm](https://www.wosign.com/column/ssl_20211231.htm)
+>
+> [ztunnel 流量重定向](https://istio.io/latest/zh/docs/ops/ambient/usage/traffic-redirection/)

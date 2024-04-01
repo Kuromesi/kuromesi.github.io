@@ -10,6 +10,7 @@ author: kuromesi
 
 Istio 为微服务提供了无侵入，可插拔的安全框架。应用不需要修改代码，就可以利用 Istio 提供的双向 TLS 认证实现服务身份认证，并基于服务身份信息提供细粒度的访问控制。Istio 安全的高层架构如下图所示：
 ![Istio 安全架构](images/arch-sec.svg){: width="800"}
+_Istio 安全架构_
 
 图中展示了 Istio 中的服务认证和授权两部分内容。让我们暂时忽略掉授权部分，先关注认证部分。服务认证是通过控制面和数据面一起实现的：
 
@@ -19,6 +20,7 @@ Istio 为微服务提供了无侵入，可插拔的安全框架。应用不需�
 ## 控制面证书签发流程
 
 ![Istio 证书分发流程](images/istio-ca.svg){: width="800"}
+_Istio 证书分发流程_
 
 ## 为什么要通过 Pilot-agent 中转？
 
@@ -46,10 +48,12 @@ Istio 证书签发的过程中涉及到了三个组件：Istiod (Istio CA) —> 
 备注：除了 Kubernetes 之外，Istio 也支持虚机部署，在虚机部署的场景下，由于没有 service account，Pilot-agent 和 Pilotd 之间的身份认证方式有所不同。由于 Istio 的主要使用场景还是 Kubernetes，本文只分析 Kubernetes 部署场景。
 
 ![身份供应流程](images/id-prov.svg){: width="800"}
+_身份供应流程_
 
 ## CA 具体认证流程
 
 ![CA 认证流程](images/1169376-20191009111543085-161187219.png)
+_CA 认证流程_
 
 整个过程如下：
 1. 服务方 S 向第三方机构CA提交公钥、组织信息、个人信息(域名)等信息并申请认证;**（不交私钥）**
@@ -74,6 +78,7 @@ Istio 证书签发的过程中涉及到了三个组件：Istiod (Istio CA) —> 
 ## Istio 认证
 
 ![认证过程](images/authn.svg){: width="800"}
+_认证过程_
 
 *源码见`pilot/pkg/security/authn`*
 
@@ -97,6 +102,7 @@ Istio 提供两种类型的认证：
 ## Istio 授权
 
 ![授权架构](images/authz.svg){: width="800"}
+_授权架构_
 
 授权策略对服务器端 Envoy 代理的入站流量实施访问控制。 每个 Envoy 代理都运行一个授权引擎，该引擎在运行时授权请求。 当请求到达代理时，授权引擎根据当前授权策略评估请求上下文， 并返回授权结果 ALLOW 或 DENY。 运维人员使用 .yaml 文件指定 Istio 授权策略。
 

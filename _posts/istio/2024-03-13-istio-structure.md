@@ -7,6 +7,7 @@ author: kuromesi
 ---
 
 ![Istio架构](/images/istio-ports-components.webp)
+_Istio架构_
 
 ## Istio 组件
 Istio 是一个开放源代码的服务网格，它为微服务提供了网络层的抽象，以便在云原生应用中管理服务间的通信、监控、安全等方面。Istio 的架构设计包含了一系列的关键组件，它们协同工作以提供其功能。截至我的最后更新（2023年8月），Istio 的主要组件包括：

@@ -485,6 +485,55 @@ configHandler := func(prev config.Config, curr config.Config, event model.Event)
 }
 ```
 
+### networking
+
+#### listeners
+
+根据不同的 proxy 节点类型，例如与应用容器运行在一起的 sidecar 模式 proxy 或是在 ambient 模式下以 waypoint 形式存在的 proxy，对新的 push request 中的 push context 进行处理，生成 listeners 配置。
+
+```go
+// pilot/pkg/xds/lds.go
+func (l LdsGenerator) Generate(proxy *model.Proxy, _ *model.WatchedResource, req *model.PushRequest) (model.Resources, model.XdsLogDetails, error) {
+	if !ldsNeedsPush(proxy, req) {
+		return nil, model.DefaultXdsLogDetails, nil
+	}
+	listeners := l.ConfigGenerator.BuildListeners(proxy, req.Push)
+	resources := model.Resources{}
+	for _, c := range listeners {
+		resources = append(resources, &discovery.Resource{
+			Name:     c.Name,
+			Resource: protoconv.MessageToAny(c),
+		})
+	}
+	return resources, model.DefaultXdsLogDetails, nil
+}
+
+// pilot/pkg/networking/core/v1alpha3/listener.go
+// BuildListeners produces a list of listeners and referenced clusters for all proxies
+func (configgen *ConfigGeneratorImpl) BuildListeners(node *model.Proxy,
+	push *model.PushContext,
+) []*listener.Listener {
+	builder := NewListenerBuilder(node, push)
+
+	switch node.Type {
+	case model.SidecarProxy:
+		builder = configgen.buildSidecarListeners(builder)
+	case model.Waypoint:
+		builder = configgen.buildWaypointListeners(builder)
+	case model.Router:
+		builder = configgen.buildGatewayListeners(builder)
+	}
+
+	builder.patchListeners()
+	l := builder.getListeners()
+	if builder.node.EnableHBONE() && !builder.node.IsWaypointProxy() {
+		l = append(l, buildConnectOriginateListener())
+	}
+
+	return l
+}
+```
+
 ### ServiceRegistry
 
 `ServiceRegistry` 定义了 `Controller` 结构体对不同的服务注册中心进行管理。前几行的代码中的两行声明是Go语言中的"空白标识符"语法。它们不会实际声明任何变量或值,而是用于确保某些类型实现了特定接口。如果类型没有正确实现所需的接口，Go编译器将报错。
@@ -714,11 +763,14 @@ graph LR
 	Instance
 ``` -->
 
+## security
+
+
+
 ## Issue
 
 ### nodeType 区别
 ```go
-// pilot/pkg/model/context.go
 // NodeType decides the responsibility of the proxy serves in the mesh
 type NodeType string
 
@@ -736,6 +788,9 @@ const (
 	Ztunnel NodeType = "ztunnel"
 )
 ```
+{: file='pilot/pkg/model/context.go'}
 
 ## 引用
 > [https://istio.io/latest/zh/docs/setup/additional-setup/cni/](https://istio.io/latest/zh/docs/setup/additional-setup/cni/)
+>
+> [Istio 安全源码分析——认证体系与通信安全](https://cloudnative.to/blog/istio-zero-trust-source-code-reading/)

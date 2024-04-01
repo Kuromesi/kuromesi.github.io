@@ -77,6 +77,7 @@ rust 使用 mod 关键词用来定义模块和引入模块。use 仅仅是在存
 ## 静态分发和动态分发
 
 ![静态分发与动态分发](images/v2-b771fe4cfc6ebd63d9aff42840eb8e67.jpg)
+_静态分发与动态分发_
 
 回忆一下泛型章节我们提到过的，泛型是在编译期完成处理的：编译器会为**每一个泛型参数对应的具体类型生成一份代码**，这种方式是静态分发 (static dispatch) ，因为是在编译期完成的，对于运行期性能完全没有任何影响。
 
@@ -111,8 +112,83 @@ rust 使用 mod 关键词用来定义模块和引入模块。use 仅仅是在存
 
 > [https://course.rs/advance/functional-programing/closure.html](https://course.rs/advance/functional-programing/closure.html)
 
+## 解构
+
+> [https://rust-book.junmajinlong.com/ch10/03_deconstruction.html](https://rust-book.junmajinlong.com/ch10/03_deconstruction.html)
+
 ## Issues
+
+### 引用归一化
+
+```rust
+impl<T: ?Sized> Deref for &T {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        *self
+    }
+}
+```
+
+对于 &&&T 来说，在传参过程中会被自动解引用，第一次解引用 *(&&&T) 得到 &&T，不满足参数类型，继续解引用得到 &T，满足参数类型，最终得到 &T。
+
+```rust
+fn test_deref(x &T) {
+   ...
+}
+
+fn main() {
+   test_deref(&&&42);
+}
+```
+
+[https://blog.51cto.com/u_15683898/5422950](https://blog.51cto.com/u_15683898/5422950)
+
+### 闭包问题
+
+```
+error[E0507]: cannot move out of `val`, a captured variable in an `Fn` closure
+  --> src/main.rs:46:68
+
+   |
+45 | fn test(data: &Data, val: Vec<u32>) {
+   |                      --- captured outer variable
+46 |     let _ret = call_closue(data, move |person: &Data|person.getval(val));
+   |                                  --------------------              ^^^ move occurs because `val` has type `Vec<u32>`, which does not implement the `Copy` trait
+   |                                  |
+   |                                  captured by this `Fn` closure
+
+For more information about this error, try `rustc --explain E0507`
+```
+
+> [https://rustcc.cn/article?id=7f7cc23e-41dc-40e0-a81e-3b1794b313ea](https://rustcc.cn/article?id=7f7cc23e-41dc-40e0-a81e-3b1794b313ea)
 
 ### VSCode Debug 只显示变量地址
 
 rust analyzer debug engine settings 选择 lldb 作为引擎。
+
+### let 和 while let
+
+我们提到将 let 替换为 while let 后，多线程的优势将荡然无存，原因藏的很隐蔽：
+
+Mutex 结构体没有提供显式的 unlock，要依赖作用域结束后的 drop 来自动释放
+let job = receiver.lock().unwrap().recv().unwrap(); 在这行代码中，由于使用了 let，右边的任何临时变量会在 let 语句结束后立即被 drop，因此锁会自动释放
+然而 while let (还包括 if let 和 match) 直到最后一个花括号后，才触发 drop
+
+```rust
+impl Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(move || {
+            while let Ok(job) = receiver.lock().unwrap().recv() {
+                println!("Worker {id} got a job; executing.");
+
+                job();
+            }
+        });
+
+        Worker { id, thread }
+    }
+}
+```
+
+根据之前的分析，上面的代码直到 job() 任务执行结束后，才会释放锁，去执行另一个请求，最终造成请求排队。
