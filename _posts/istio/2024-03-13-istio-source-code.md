@@ -765,7 +765,85 @@ graph LR
 
 ## security
 
+```go
+// VerifyPeerCert is an implementation of tls.Config.VerifyPeerCertificate.
+// It verifies the peer certificate using the root certificates associated with its trust domain.
+func (v *PeerCertVerifier) VerifyPeerCert(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+	if len(rawCerts) == 0 {
+		// Peer doesn't present a certificate. Just skip. Other authn methods may be used.
+		return nil
+	}
+	var peerCert *x509.Certificate
+	intCertPool := x509.NewCertPool()
+	for id, rawCert := range rawCerts {
+		cert, err := x509.ParseCertificate(rawCert)
+		if err != nil {
+			return err
+		}
+		if id == 0 {
+			peerCert = cert
+		} else {
+			intCertPool.AddCert(cert)
+		}
+	}
+	if len(peerCert.URIs) != 1 {
+		return fmt.Errorf("peer certificate does not contain 1 URI type SAN, detected %d", len(peerCert.URIs))
+	}
+	trustDomain, err := GetTrustDomainFromURISAN(peerCert.URIs[0].String())
+	if err != nil {
+		return err
+	}
+	rootCertPool, ok := v.certPools[trustDomain]
+	if !ok {
+		return fmt.Errorf("no cert pool found for trust domain %s", trustDomain)
+	}
 
+	// 为什么这里需要重复认证一次？
+	_, err = peerCert.Verify(x509.VerifyOptions{
+		Roots:         rootCertPool,
+		Intermediates: intCertPool,
+	})
+	return err
+}
+```
+{: file='pkg/spiffe/spiffe.go'}
+
+go tls 源码中在调用 VerifyPeerCertificate 前已经进行了证书链认证，为什么需要在这里重新认证一次？
+
+```go
+func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+	...
+
+	if !c.config.InsecureSkipVerify {
+		opts := x509.VerifyOptions{
+			Roots:         c.config.RootCAs,
+			CurrentTime:   c.config.time(),
+			DNSName:       c.config.ServerName,
+			Intermediates: x509.NewCertPool(),
+		}
+
+		for _, cert := range certs[1:] {
+			opts.Intermediates.AddCert(cert)
+		}
+		var err error
+		// 证书链认证
+		c.verifiedChains, err = certs[0].Verify(opts)
+		if err != nil {
+			c.sendAlert(alertBadCertificate)
+			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+		}
+	}
+
+	if c.config.VerifyPeerCertificate != nil {
+		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return err
+		}
+	}
+	...
+	return nil
+}
+```
 
 ## Issue
 
