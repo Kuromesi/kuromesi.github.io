@@ -1,8 +1,8 @@
 ---
-title: LeetCode 刷题笔记
+title: 算法刷题笔记
 date: 2024-03-31 10:49:06 +0800
-categories: [Algorithm, LeetCode]
-tags: [leetcode]
+categories: [Algorithm, Notes]
+tags: [algorithm]
 author: kuromesi
 math: true
 ---
@@ -49,3 +49,87 @@ class Solution {
     }
 }
 ```
+
+## 淘天 20240403 题 1
+
+### 题目
+
+给你一个数组，有 q 次查询，每次查询查区间 [l，r]，从 l 到 r 拼接的数是否能被 3 整除（例如 [11，45，14]，对于区间 [1，3] 拼接 → 114514，不可被整除，输出 NO 否则 YES ）
+
+### 解题思路
+
+本题最重要的是需要推导出如下形式的式子：
+
+$$(x + y + z) \% 3 = (10^ax + 10^by + z) \% 3$$
+
+之后便可以简单地利用前缀和进行求解。根据：
+
+$$
+(a + b) \% c = (a \% c + b \% c) \% c
+$$
+
+可以得到：
+
+$$
+(10^ax + 10^by + z) \% 3 = (10^ax \% 3 + 10^by \% 3 + z \% 3) \% 3
+$$
+
+根据：
+
+$$
+(ax) \% c = (a \% c \times x \% c) \% c
+$$
+
+可以得到：
+
+$$
+((10^a \% 3 \times x \% c) \% c + (10^b \% 3 \times y \% c) \% c + z \% 3)
+$$
+
+因为：
+
+$$
+10^n \% 3 = 1
+$$
+
+因此原式可以化简为：
+
+$$
+\begin{aligned}
+((x \% 3) \% 3 + (y \% 3) \% 3 + z \% 3) \% 3 &= (x \% 3 + y \% 3 + z \% 3) \% 3 \\
+
+&= (x + y + z) \% 3
+\end{aligned}
+$$
+
+> [取余运算法则](https://blog.csdn.net/Ash_Zheng/article/details/38541777)
+
+### 题解
+
+```python
+def is_triple(arr_sum, l, r):
+    return (arr_sum[r] - arr_sum[l - 1]) % 3 == 0
+
+n, q = map(int, input().split())
+arr = list(map(int, input().split()))
+
+arr_sum = []
+arr_sum.append(0)
+for i in arr:
+    arr_sum.append(arr_sum[-1] + i)
+
+ans = []
+for i in range(q):
+    l, r = map(int, input().split())
+    ans.append("YES" if is_triple(arr_sum, l, r) else "NO")
+
+for a in ans:
+    print(a)
+
+# 3 1
+# 11 45 14
+# 1 3
+# No
+```
+
+## 淘天 20240403 题 2

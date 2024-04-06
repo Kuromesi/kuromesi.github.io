@@ -845,6 +845,127 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 }
 ```
 
+### CA
+
+```mermaid
+graph LR
+	createIstioCA--local-->initCACertsWatcher-->handleCACertsFileWatch-->handleEvents-->updateRootCertAndGenKeyCert-->GenKeyCert
+	createIstioCA--self-signed-->createSelfSignedCACertificateOptions
+```
+
+CA 创建可以分为两种，分别为本地 CA 证书和自签名 CA 证书。本地 CA 证书通过将 secret cacerts 挂载到 pod 中，自签名 CA 证书则通过创建 CA 证书和 CA 私钥来生成。
+
+#### 自签名证书
+
+自签名证书需要 cert rotator 定期对证书进行更新。
+
+```go
+// NewSelfSignedCARootCertRotator returns a new root cert rotator instance that
+// rotates self-signed root cert periodically.
+// nolint: gosec
+// Not security sensitive code
+func NewSelfSignedCARootCertRotator(config *SelfSignedCARootCertRotatorConfig,
+	ca *IstioCA,
+	onRootCertUpdate func() error,
+) *SelfSignedCARootCertRotator {
+	rotator := &SelfSignedCARootCertRotator{
+		caSecretController: controller.NewCaSecretController(config.client),
+		config:             config,
+		ca:                 ca,
+		onRootCertUpdate:   onRootCertUpdate,
+	}
+	if config.enableJitter {
+		// Select a back off time in seconds, which is in the range of [0, rotator.config.CheckInterval).
+		randSource := rand.NewSource(time.Now().UnixNano())
+		randBackOff := rand.New(randSource)
+		backOffSeconds := int(time.Duration(randBackOff.Int63n(int64(rotator.config.CheckInterval))).Seconds())
+		rotator.backOffTime = time.Duration(backOffSeconds) * time.Second
+		rootCertRotatorLog.Infof("Set up back off time %s to start rotator.", rotator.backOffTime.String())
+	} else {
+		rotator.backOffTime = time.Duration(0)
+	}
+	return rotator
+}
+```
+{: file='security/pkg/pki/ca/selfsignedcarootcertrotator.go'}
+
+rotator 从指定的 secret 中获取 CA secret 资源然后进行检查并对证书进行更新。
+
+```go
+// checkAndRotateRootCert decides whether root cert should be refreshed, and rotates
+// root cert for self-signed Citadel.
+func (rotator *SelfSignedCARootCertRotator) checkAndRotateRootCert() {
+	caSecret, scrtErr := rotator.caSecretController.LoadCASecretWithRetry(rotator.config.secretName,
+		rotator.config.caStorageNamespace, rotator.config.retryInterval, rotator.config.retryMax)
+
+	if scrtErr != nil {
+		rootCertRotatorLog.Errorf("Fail to load CA secret %s:%s (error: %s), skip cert rotation job",
+			rotator.config.caStorageNamespace, rotator.config.secretName, scrtErr.Error())
+	} else {
+		rotator.checkAndRotateRootCertForSigningCertCitadel(caSecret)
+	}
+}
+```
+{: file='security/pkg/pki/ca/selfsignedcarootcertrotator.go'}
+
+#### 本地 CA 证书
+
+`initCACertsWatcher` initializes the cacerts (/etc/cacerts) directory. In particular it monitors 'ca-key.pem', 'ca-cert.pem', 'root-cert.pem' and 'cert-chain.pem'. Inside, the key/cert are 'ca-key.pem' and 'ca-cert.pem'. The root cert signing the intermediate is root-cert.pem, which may contain multiple roots. A 'cert-chain.pem' file has the full cert chain.
+
+Istiod 证书生成过程，首先根据输入的请求生成一个 CSR（Certificate Signing Request）,然后使用 CA 的私钥进行签名生成证书，最后返回证书 `CertPem` 和私钥`PrivPem`。
+
+```go
+// GenKeyCert generates a certificate signed by the CA,
+// returns the certificate chain and the private key.
+func (ca *IstioCA) GenKeyCert(hostnames []string, certTTL time.Duration, checkLifetime bool) ([]byte, []byte, error) {
+	opts := util.CertOptions{
+		RSAKeySize: rsaKeySize,
+	}
+
+	// use the type of private key the CA uses to generate an intermediate CA of that type (e.g. CA cert using RSA will
+	// cause intermediate CAs using RSA to be generated)
+	_, signingKey, _, _ := ca.keyCertBundle.GetAll()
+	curve, err := util.GetEllipticCurve(signingKey)
+	if err == nil {
+		opts.ECSigAlg = util.EcdsaSigAlg
+		switch curve {
+		case elliptic.P384():
+			opts.ECCCurve = util.P384Curve
+		default:
+			opts.ECCCurve = util.P256Curve
+		}
+	}
+
+	csrPEM, privPEM, err := util.GenCSR(opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	certPEM, err := ca.signWithCertChain(csrPEM, hostnames, certTTL, checkLifetime, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return certPEM, privPEM, nil
+}
+```
+{: file='security/pkg/pki/ca/ca.go'}
+
+### 客户端签名
+
+```go
+// CreateCertificate handles an incoming certificate signing request (CSR). It does
+// authentication and authorization. Upon validated, signs a certificate that:
+// the SAN is the identity of the caller in authentication result.
+// the subject public key is the public key in the CSR.
+// the validity duration is the ValidityDuration in request, or default value if the given duration is invalid.
+// it is signed by the CA signing key.
+func (s *Server) CreateCertificate(ctx context.Context, request *pb.IstioCertificateRequest) (
+	*pb.IstioCertificateResponse, error,
+)
+```
+{: file='security/pkg/server/ca/server.go'}
+
 ## Issue
 
 ### nodeType 区别

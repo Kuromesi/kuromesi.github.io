@@ -234,3 +234,7 @@ graph TD;
     J -->|Found| O[Build request with waypoint];
     J -->|Not found| P[Error: Unknown waypoint];
 ```
+
+## 参考
+
+> [Rust Ztunnel 源码分析](https://blog.yanick.site/2023/03/07/networking/istio/ambient-mesh/ztunnel/#Workload-Manger-%E6%A8%A1%E5%9D%97)

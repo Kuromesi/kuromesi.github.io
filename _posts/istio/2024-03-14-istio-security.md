@@ -125,6 +125,8 @@ Istio 的授权功能为网格中的工作负载提供网格、 命名空间和�
 ## Istio Spiffe
 
 > [为什么 Istio 要使用 SPIRE 做身份认证？](https://jimmysong.io/blog/why-istio-need-spire/)
+>
+> [SPIFFE/SPIRE 从入门到入门](https://blog.fleeto.us/post/something-about-spire/)
 
 ## SSL 基础
 
