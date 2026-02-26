@@ -141,9 +141,6 @@ kramdown:
       line_numbers: true
       start_line: 1
 
-mermaid:
-  enabled: false
-
 collections:
   tabs:
     output: true
