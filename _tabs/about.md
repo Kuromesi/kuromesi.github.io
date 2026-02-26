@@ -4,7 +4,7 @@ icon: fas fa-info-circle
 order: 4
 ---
 
-# 👋 Hi, I'm kuromesi
+# 👋 Hi, I'm Kuromesi
 
 **Cloud Native Explorer | Kubernetes & Istio Enthusiast**
 
