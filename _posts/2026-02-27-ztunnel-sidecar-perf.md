@@ -104,11 +104,11 @@ ztunnel所需的配置量远小于envoy，并且istiod中也专门针对ztunnel�
 
 在 CPU 消耗方面，ztunnel 展现出了显著的轻量化优势：
 
-*   **Envoy Sidecar：** 在 3000 Pod 启动的首个波峰，Istiod CPU 负载迅速飙升至 **7.99**（接近 8 核限制），随后在增量变更时再次出现明显跳波。
+*   **Envoy Sidecar：** 在 3000 Pod 启动的首个波峰，Istiod CPU 负载迅速飙升至 **7.99**（接近 8 核限制），随后在增量变更时再次出现明显跳波。（第一个波峰为3000pod启动，第二个波峰为新建100 pod）
 
 ![image.png](/assets/img/istio/ztunnel-sidecar-perf/cpu-envoy.png)
 
-*   **ztunnel Sidecar：** 同样的负载下，ztunnel 模式下的 CPU 峰值仅为 **1.42**。这得益于其简化的零信任隧道协议（HBONE），极大地降低了配置计算的复杂度。（第一个波峰为3000pod启动，第二个波峰为新建100 pod）    
+*   **ztunnel Sidecar：** 同样的负载下，ztunnel 模式下的 CPU 峰值仅为 **1.42**。
 
 ![image.png](/assets/img/istio/ztunnel-sidecar-perf/cpu-ztunnel.png)
 
@@ -121,7 +121,7 @@ ztunnel所需的配置量远小于envoy，并且istiod中也专门针对ztunnel�
 
 ![image.png](/assets/img/istio/ztunnel-sidecar-perf/mem-envoy.png)
 
-*   **ztunnel Sidecar：** ztunnel 仅需感知必要的 L4 节点信息，内存开销缩减至 **1.14 GiB**，资源节省率高达 **74%**。
+*   **ztunnel Sidecar：** ztunnel 仅需感知必要的工作负载和服务信息，内存开销缩减至 **1.14 GiB**，资源节省率高达 **74%**。
     
 ![image.png](/assets/img/istio/ztunnel-sidecar-perf/mem-ztunnel.png)
 
@@ -153,14 +153,12 @@ ztunnel所需的配置量远小于envoy，并且istiod中也专门针对ztunnel�
 ## 结语
 
 将 Ztunnel 引入 Pod 级 Sidecar 模式，结合了 Sidecar 的安全隔离和 Ambient 的高效性，其优越性体现在：
-
-1.  **极简的配置模型**：摒弃了复杂的 CDS/LDS，通过 WDS 实现轻量级分发，将 xDS 推送量降低了 75%-80%。
     
-2.  **更短的收敛时间**：在配置变更（如 Pod 扩缩容）时，更小的数据量意味着更快的推送和应用速度，极大提高了服务发现的时效性。
+1.  **更短的收敛时间**：在配置变更（如 Pod 扩缩容）时，更小的数据量意味着更快的推送和应用速度，极大提高了服务发现的时效性。
     
-3.  **极高的可扩展性**：在万级 Pod 的集群中，传统 Sidecar 模式常导致 Istiod 内存溢出 (OOM) 或网络带宽打满，而 Ztunnel-Sidecar 方案将这一上限提升了 5 倍以上。
+2.  **极高的可扩展性**：在万级 Pod 的集群中，传统 Sidecar 模式常导致 Istiod 内存溢出 (OOM) 或网络带宽打满，而 Ztunnel-Sidecar 方案将这一上限提升了 5 倍以上。
     
-4.  **L4 足够原则**：对于大量仅需 mTLS 和基础访问控制、不需要复杂 L7 重写的业务，该方案提供了性价比最高的选择。
+3.  **L4 足够原则**：对于大量仅需 mTLS 和基础访问控制、不需要复杂 L7 重写的业务，该方案提供了性价比最高的选择。
     
 
 数据证明，通过优化 Sidecar 的“重量”，我们可以获得更具弹性的服务网格。Ztunnel-as-Sidecar 的尝试，为 Istio 在超大规模云原生环境下的应用提供了一条全新的技术路径。
