@@ -9,7 +9,7 @@ tags: [istio, envoy, service mesh, ambient, ai generated]
 
 在 Istio 的演进过程中，我们见证了从传统的 **Sidecar 模式**（基于 Envoy）到 **Ambient Mesh 模式**（基于节点级 Ztunnel 和 Waypoint）的转变。传统的 Sidecar 模式为每个 Pod 提供了强大的 L7 处理能力，但在超大规模集群中，Envoy 庞大的 xDS 配置推送成为了控制面和网络带宽的沉重负担。
 
-![image.png](https://alidocs.oss-cn-zhangjiakou.aliyuncs.com/res/Mp7ld7b58d9apOBQ/img/d8c7a89c-7e5f-4957-8463-f04e21820549.png "传统的 Sidecar 模式")
+!["传统的 Sidecar 模式"](/assets/img/istio/traditional-istio.png)
 
 Istio Ambient Mesh 的出现通过解耦 L4 (Ztunnel) 和 L7 (Waypoint) 代理，极大地降低了服务网格的运维成本。然而，在 **Serverless**  或高度受限的云原生环境中，Ambient 模式遇到了坚硬的墙：
 
@@ -18,7 +18,7 @@ Istio Ambient Mesh 的出现通过解耦 L4 (Ztunnel) 和 L7 (Waypoint)�
 2.  **CNI 限制**：Ambient 依赖 Node 级的 CNI 流量重定向逻辑，这在不允许修改宿主机网络栈的环境中失效。
     
 
-![image.png](https://alidocs.oss-cn-zhangjiakou.aliyuncs.com/res/Mp7ld7b58d9apOBQ/img/4b7a7542-5caf-45f0-8a8c-a89f00cc4be8.png "Ambient 模式")
+!["Ambient 模式"](/assets/img/istio/traditional-istio.png)
 
 为了打破这一限制，我们创新性地实现了 **“Ztunnel-as-Sidecar”** 方案：将轻量级的 Ztunnel 注入 Pod 内部，这种方式可以完美适配 Serverless 环境，并和 Ambient 模式使用体验保持一致，在 **xDS 配置量和推送性能**上，相对传统 Envoy Sidecar 有巨大的性能提升。
 
