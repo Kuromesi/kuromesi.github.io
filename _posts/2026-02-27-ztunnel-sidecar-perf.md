@@ -20,9 +20,7 @@ Istio Ambient Mesh 的出现通过解耦 L4 (Ztunnel) 和 L7 (Waypoint)�
 
 ![image.png](https://alidocs.oss-cn-zhangjiakou.aliyuncs.com/res/Mp7ld7b58d9apOBQ/img/4b7a7542-5caf-45f0-8a8c-a89f00cc4be8.png "Ambient 模式")
 
-为了打破这一限制，我们创新性地实现了 **“Ztunnel-as-Sidecar”** 方案：将轻量级的 Ztunnel 注入 Pod 内部。实验证明，这种方式不仅完美适配 Serverless，在 **xDS 配置量和推送性能**上，更是对传统 Envoy Sidecar 形成了降维打击。
-
-通过实验测试，我们发现这种方式在 xDS 推送量上相比传统 Envoy Sidecar 有了**数量级**的下降。
+为了打破这一限制，我们创新性地实现了 **“Ztunnel-as-Sidecar”** 方案：将轻量级的 Ztunnel 注入 Pod 内部，这种方式可以完美适配 Serverless 环境，并和 Ambient 模式使用体验保持一致，在 **xDS 配置量和推送性能**上，相对传统 Envoy Sidecar 有巨大的性能提升。
 
 ## 实验设计与数据分析
 
