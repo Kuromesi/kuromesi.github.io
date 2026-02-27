@@ -88,6 +88,68 @@ Istio Ambient Mesh 的出现通过解耦 L4 (Ztunnel) 和 L7 (Waypoint)�
 
 **结论 2：CPU 处理开销降低。** Envoy 在解析几兆字节的 JSON/Protobuf 配置并更新其内部路由表时，会消耗大量 CPU 并可能产生短暂的流量抖动。而 Ztunnel 采用了更加轻量高效的 WDS，可以大幅降低解析配置所需的 CPU 消耗。
 
+
+## 控制面推送性能测试
+
+ztunnel所需的配置量远小于envoy，并且istiod中也专门针对ztunnel的配置计算链路进行了优化。为了模拟真实的大规模生产环境，我们设计了以下两个阶段的资源部署测试：
+
+1.  **阶段一（全量启动）：** 新建 500 个 Services 和 3000 个 Pods，观察系统在面对高并发资源初始化时的吞吐能力。
+    
+2.  **阶段二（增量变更）：** 在上述基础上，再次新建 1 个 Service 和 100 个 Pods，模拟日常业务扩容时的配置收敛速度。
+    
+
+以下是我们在测试过程中监控到的关键性能指标变化：
+
+### 1. CPU 占用分析
+
+在 CPU 消耗方面，ztunnel 展现出了显著的轻量化优势：
+
+*   **Envoy Sidecar：** 在 3000 Pod 启动的首个波峰，Istiod CPU 负载迅速飙升至 **7.99**（接近 8 核限制），随后在增量变更时再次出现明显跳波。
+
+![image.png](/assets/img/istio/ztunnel-sidecar-perf/cpu-envoy.png)
+
+*   **ztunnel Sidecar：** 同样的负载下，ztunnel 模式下的 CPU 峰值仅为 **1.42**。这得益于其简化的零信任隧道协议（HBONE），极大地降低了配置计算的复杂度。（第一个波峰为3000pod启动，第二个波峰为新建100 pod）    
+
+![image.png](/assets/img/istio/ztunnel-sidecar-perf/cpu-ztunnel.png)
+
+### 2. 内存占用对比
+
+内存作为衡量控制面扩展性的核心指标，ztunnel 同样表现优异：
+
+*   **Envoy Sidecar：** 由于需要维护庞大的全量 xDS 配置树，Istiod 内存占用达到了 **4.41 GiB**。
+    
+
+![image.png](/assets/img/istio/ztunnel-sidecar-perf/mem-envoy.png)
+
+*   **ztunnel Sidecar：** ztunnel 仅需感知必要的 L4 节点信息，内存开销缩减至 **1.14 GiB**，资源节省率高达 **74%**。
+    
+![image.png](/assets/img/istio/ztunnel-sidecar-perf/mem-ztunnel.png)
+
+### 3. xDS 推送效率
+
+这里展示了 istiod 向 proxy 进行推送的时间延迟，延迟越低，服务越无感：
+
+*   **Envoy Sidecar：** 在处理大规模配置推送时，推送时间直接触及了监控指标的上限 **30s**。这意味着在此场景下，Envoy 的配置生效延迟已成为业务扩展的瓶颈。
+    
+
+![image.png](/assets/img/istio/ztunnel-sidecar-perf/time-envoy.png)
+
+
+*   **ztunnel Sidecar：** 其推送时间仅为 **450ms** 左右，相对于 Envoy 代理推送和计算时间大大减少。
+    
+![image.png](/assets/img/istio/ztunnel-sidecar-perf/time-ztunnel.png)
+
+## 结果汇总与总结
+
+下表清晰地展示了两种模式在极端负载下的表现差异：
+
+| 测试项 (Metrics) | Envoy Sidecar 模式 | ztunnel (Ambient) 模式 | 性能提升 (ztunnel vs Envoy) |
+| --- | --- | --- | --- |
+| **CPU 峰值占用** | 7.99 (Limit: 8) | **1.42** | ~ 82% 降低 |
+| **内存峰值占用** | 4.41 GiB | **1.14 GiB** | ~ 74% 降低 |
+| **xDS 推送延迟** | 30s + (达到监控上限) | **450ms 左右** | **量级突破 (约 60 倍提升)** |
+
+
 ## 结语
 
 将 Ztunnel 引入 Pod 级 Sidecar 模式，结合了 Sidecar 的安全隔离和 Ambient 的高效性，其优越性体现在：
