@@ -94,27 +94,6 @@ draft: false
 
 Your content here...
 ```
-
-## 🛠️ Technologies
-
-- **[Hugo](https://gohugo.io/)** - Static site generator
-- **[Blowfish](https://blowfish.page/)** - Hugo theme
-- **[Tailwind CSS](https://tailwindcss.com/)** - CSS framework (via theme)
-- **[Fuse.js](https://fusejs.io/)** - Search functionality (via theme)
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🤝 Contributing
-
-Feel free to open issues or submit pull requests for any suggestions or improvements.
-
-## 📞 Contact
-
-- **Blog**: [https://kuromesi.github.io/](https://kuromesi.github.io/)
-- **GitHub**: [@kuromesi](https://github.com/kuromesi)
-
 ---
 
 Built with ❤️ using Hugo & Blowfish
