@@ -1,56 +1,120 @@
-# Chirpy Starter
+# Kuromesi Blog
 
-[![Gem Version](https://img.shields.io/gem/v/jekyll-theme-chirpy)][gem]&nbsp;
-[![GitHub license](https://img.shields.io/github/license/cotes2020/chirpy-starter.svg?color=blue)][mit]
+[![Hugo](https://img.shields.io/badge/Hugo-FF4088?style=flat&logo=hugo)](https://gohugo.io/)
+[![Blowfish Theme](https://img.shields.io/badge/Theme-Blowfish-5636D3?style=flat)](https://blowfish.page/)
 
-When installing the [**Chirpy**][chirpy] theme through [RubyGems.org][gem], Jekyll can only read files in the folders
-`_data`, `_layouts`, `_includes`, `_sass` and `assets`, as well as a small part of options of the `_config.yml` file
-from the theme's gem. If you have ever installed this theme gem, you can use the command
-`bundle info --path jekyll-theme-chirpy` to locate these files.
+> **Cloud Native Explorer | Kubernetes & Istio Enthusiast**
 
-The Jekyll team claims that this is to leave the ball in the user’s court, but this also results in users not being
-able to enjoy the out-of-the-box experience when using feature-rich themes.
+A personal blog built with [Hugo](https://gohugo.io/) and the [Blowfish](https://blowfish.page/) theme, focusing on cloud-native technologies, Kubernetes, Istio, and related topics.
 
-To fully use all the features of **Chirpy**, you need to copy the other critical files from the theme's gem to your
-Jekyll site. The following is a list of targets:
+## 🌐 Live Site
 
-```shell
-.
-├── _config.yml
-├── _plugins
-├── _tabs
-└── index.html
+Visit the blog at: [https://kuromesi.github.io/](https://kuromesi.github.io/)
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- [Hugo](https://gohugo.io/installation/) (Extended version recommended)
+- Git
+
+### Local Development
+
+```bash
+# Clone the repository
+git clone https://github.com/kuromesi/kuromesi.github.io.git
+cd kuromesi.github.io
+
+# Start Hugo development server
+hugo server -D
 ```
 
-To save you time, and also in case you lose some files while copying, we extract those files/configurations of the
-latest version of the **Chirpy** theme and the [CD][CD] workflow to here, so that you can start writing in minutes.
+The site will be available at `http://localhost:1313/`
 
-## Prerequisites
+### Build for Production
 
-Follow the instructions in the [Jekyll Docs](https://jekyllrb.com/docs/installation/) to complete the installation of
-the basic environment. [Git](https://git-scm.com/) also needs to be installed.
-
-## Installation
-
-Sign in to GitHub and [**use this template**][use-template] to generate a brand new repository and name it
-`USERNAME.github.io`, where `USERNAME` represents your GitHub username.
-
-Then clone it to your local machine and run:
-
-```console
-$ bundle
+```bash
+# Build static files
+hugo --minify
 ```
 
-## Usage
+Production files will be generated in the `public/` directory.
 
-Please see the [theme's docs](https://github.com/cotes2020/jekyll-theme-chirpy#documentation).
+## 📁 Project Structure
 
-## License
+```
+kuromesi.github.io/
+├── config/_default/     # Hugo & theme configuration
+├── content/             # Blog posts and pages
+│   ├── _index.md        # Homepage content
+│   └── posts/           # Blog articles
+├── themes/blowfish/     # Blowfish theme
+├── static/              # Static assets
+├── assets/              # Processed assets (images, etc.)
+├── layouts/             # Custom layouts
+└── data/                # Site data files
+```
 
-This work is published under [MIT][mit] License.
+## ⚙️ Configuration
 
-[gem]: https://rubygems.org/gems/jekyll-theme-chirpy
-[chirpy]: https://github.com/cotes2020/jekyll-theme-chirpy/
-[use-template]: https://github.com/cotes2020/chirpy-starter/generate
-[CD]: https://en.wikipedia.org/wiki/Continuous_deployment
-[mit]: https://github.com/cotes2020/chirpy-starter/blob/master/LICENSE
+Key configuration files:
+
+- `config/_default/hugo.toml` - Site settings (baseURL, language, etc.)
+- `config/_default/params.toml` - Theme customization options
+- `config/_default/languages.zh-cn.toml` - Language-specific settings
+
+### Theme Features
+
+- 🎨 **Color Scheme**: Princess theme with auto-switching light/dark mode
+- 📱 **Responsive Design**: Mobile-friendly layout
+- 🔍 **Search**: Built-in search functionality
+- 📊 **Analytics**: Support for multiple analytics providers
+- 📝 **Markdown**: Enhanced markdown support with emoji
+- 🔗 **Social Sharing**: Article sharing capabilities
+
+## ✍️ Creating New Content
+
+### New Blog Post
+
+```bash
+hugo new content posts/my-new-post.md
+```
+
+Front matter template:
+
+```markdown
+---
+title: "Your Post Title"
+description: "Brief description"
+date: 2026-03-04
+tags: ["kubernetes", "cloud-native"]
+categories: ["DevOps"]
+draft: false
+---
+
+Your content here...
+```
+
+## 🛠️ Technologies
+
+- **[Hugo](https://gohugo.io/)** - Static site generator
+- **[Blowfish](https://blowfish.page/)** - Hugo theme
+- **[Tailwind CSS](https://tailwindcss.com/)** - CSS framework (via theme)
+- **[Fuse.js](https://fusejs.io/)** - Search functionality (via theme)
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## 🤝 Contributing
+
+Feel free to open issues or submit pull requests for any suggestions or improvements.
+
+## 📞 Contact
+
+- **Blog**: [https://kuromesi.github.io/](https://kuromesi.github.io/)
+- **GitHub**: [@kuromesi](https://github.com/kuromesi)
+
+---
+
+Built with ❤️ using Hugo & Blowfish

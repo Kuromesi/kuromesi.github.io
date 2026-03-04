@@ -1,21 +1,41 @@
-# Bundler cache
-.bundle
-vendor
-Gemfile.lock
+# Hugo generated files
+public/
+resources/_gen/
 
-# Jekyll cache
-.jekyll-cache
-_site
+# Hugo server lock file
+.hugo_build.lock
 
-# RubyGems
-*.gem
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
 
-# NPM dependencies
-node_modules
+# Node modules (if using npm/yarn for assets)
+node_modules/
 package-lock.json
+yarn.lock
 
-# IDE configurations
-.idea
+# Cache files
+.cache/
+hugo_stats.json
 
-# Misc
-assets/js/dist
+# Temporary files
+tmp/
+temp/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Hugo extended version specific
+assets/jsconfig.json
