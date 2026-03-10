@@ -2,7 +2,7 @@
 title: "A2A 协议概述"
 date: 2026-03-06T11:00:00+08:00
 draft: false
-tags: [a2a]
+tags: [a2a, ai generated]
 categories: [agent]
 ---
 
