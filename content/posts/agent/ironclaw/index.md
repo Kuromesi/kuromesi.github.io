@@ -111,7 +111,7 @@ ironclaw/
 
 ### 2.2 核心数据流
 
-```mermaid
+{{< mermaid >}}
 graph TB
     subgraph "渠道层 Channels"
         A[REPL] --> CM[ChannelManager]
@@ -152,7 +152,7 @@ graph TB
     style AL fill:#f9f,stroke:#333
     style SB fill:#ff9,stroke:#333
     style SL fill:#9f9,stroke:#333
-```
+{{< /mermaid >}}
 
 ### 2.3 执行流程文字描述
 
