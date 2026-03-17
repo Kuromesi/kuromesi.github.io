@@ -1,6 +1,6 @@
 ---
 title: "Kubernetes Client-Go SharedInformer"
-date: 2026-03-17T07:00:00+08:00
+date: 2026-03-17T15:00:00+08:00
 draft: false
 tags: [ai generated, kubernetes]
 categories: [source code]
