@@ -10,7 +10,7 @@ categories: [source code]
 
 你可以把 `hchan` 想象成一个管理中心，它维护着数据缓冲区、两个排队队列以及一把锁。
 
-```mermaid
+{{< mermaid >}}
 graph TD
     subgraph hchan_struct [hchan 结构体]
         direction TB
@@ -34,7 +34,7 @@ graph TD
 
     recvq --- sudog_r[sudog 链表]
     sendq --- sudog_s[sudog 链表]
-```
+{{< /mermaid >}}
 
 ---
 
@@ -44,21 +44,16 @@ graph TD
 
 {{< mermaid >}}
 flowchart TD
-    A[开始发送 ch <- data] --> B{Channel 是否为 nil?}
-    B -- 是 --> C[当前 G 进入永久阻塞]
+    A["开始发送 ch <- data"] --> B{Channel 是否为 nil?}
+    B -- 是 --> C[进入永久阻塞]
     B -- 否 --> D{Channel 是否已关闭?}
-    
-    D -- 是 --> E[Panic: send on closed channel]
+    D -- 是 --> E[Panic]
     D -- 否 --> F[获取 hchan.lock 锁]
-    
-    F --> G{recvq 是否有等待的接收者?}
-    G -- 有 --> H[<b>Direct Send</b><br/>从 recvq 取出第一个 G<br/>直接将数据拷贝到该 G 的栈<br/>唤醒该 G]
-    
-    G -- 无 --> I{buf 缓冲区是否有空位?}
-    I -- 有 --> J[<b>Buffered Send</b><br/>将数据放入 buf[sendx]<br/>sendx++ / qcount++]
-    
-    I -- 否 --> K[<b>Blocking Send</b><br/>将当前 G 打包成 sudog<br/>放入 sendq 队列<br/>调用 gopark 挂起当前 G]
-    
+    F --> G{recvq 有人等吗?}
+    G -- 有 --> H["直接拷贝数据给接收者 (Direct Send)"]
+    G -- 无 --> I{buf 有空位吗?}
+    I -- 有 --> J["放入缓冲区 (Buffered Send)"]
+    I -- 否 --> K["放入 sendq 并阻塞 (Blocking Send)"]
     H --> L[释放锁并返回]
     J --> L
     K --> L
