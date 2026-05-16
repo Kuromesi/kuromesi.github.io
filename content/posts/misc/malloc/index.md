@@ -6,7 +6,7 @@ tags: [glibc, jemalloc, malloc, memory, performance]
 categories: [misc]
 ---
 
-> **TL;DR**：在高并发、多线程、大量分配/释放的场景下，glibc 默认的 malloc 实现（ptmalloc2）会导致严重的内存碎片，RSS 可能是实际使用量的 2 倍以上。切换到 jemalloc 或 tcmalloc，内存占用可下降 30%~50%，且行为更可预测。
+> 在高并发、多线程、大量分配/释放的场景下，glibc 默认的 malloc 实现（ptmalloc2）会导致严重的内存碎片，RSS 可能是实际使用量的 2 倍以上。切换到 jemalloc 或 tcmalloc，内存占用可下降 30%~50%，且行为更可预测。
 
 ## 📋 概述
 
