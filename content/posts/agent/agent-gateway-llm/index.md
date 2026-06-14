@@ -2,7 +2,7 @@
 title: "AgentGateway LLM 模块深度解析"
 date: 2026-06-14T16:55:00+08:00
 draft: false
-tags: [ai generated, agent gateway, llm, rust]
+tags: [ai generated, agent gateway, llm]
 categories: [agent]
 ---
 
